@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>환율계산</title>
+</head>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script type="text/javascript">
+
+    function fetchExchangeRate() {
+        const $selected = document.getElementById('currency')
+        const sourceCountry = document.getElementById('source').value
+        const targetCountry = $selected.options[$selected.selectedIndex].value
+
+        fetchApiRate(sourceCountry, targetCountry);
+    }
+
+    function fetchApiRate(sourceCountry, targetCountry) {
+        $.ajax({
+            url: '/exchange?sourceCountry=' + sourceCountry + "&targetCountry=" + targetCountry,
+            type: "GET",
+            success: response => {
+                const $rateExpression = document.getElementById('rateExpression')
+                const $rate = document.getElementById('rate')
+                const $relation = document.getElementById('currencyRelation')
+                $rateExpression.innerText = response.rateExpression
+                $rate.value = response.rate
+                $relation.innerText = response.currencyRelation
+            },
+            error: err => {
+                console.error(err)
+                alert(err.responseJSON.message)
+            }
+        })
+    }
+
+    function transfer() {
+        const money = document.getElementById('transferMoney').value
+        if (isNaN(money)) {
+            alert("숫자만 입력가능합니다")
+        }
+
+        const $selected = document.getElementById('currency')
+        const targetCountry = $selected.options[$selected.selectedIndex].value
+
+        $.ajax({
+            url: '/exchange/transfer',
+            type: "POST",
+            headers: {
+                "Content-Type" : "application/json"
+            },
+            data: JSON.stringify({
+                "source": document.getElementById('source').value,
+                "target": targetCountry,
+                "rate" : document.getElementById('rate').value,
+                "transferMoney" : money
+            }),
+            success: response => {
+                const $result = document.getElementById('result')
+                $result.innerText =`수취금액은 ${response.recipientRateExpression} ${response.recipientCountry}입니다.`
+            },
+            error: err => {
+                console.error(err)
+                alert(err.responseJSON.message)
+            }
+        })
+    }
+</script>
+<body>
+<h1>환율계산</h1>
+
+<input type="hidden" id="source" value="USD"/>
+<input type="hidden" id="rate" th:value="${exchangeRate.getRate()}"/>
+
+<div>송금국가: <span>미국(USD)</span></div>
+<div>수취국가:
+    <select name="currency" id="currency" onchange="fetchExchangeRate()">
+        <option value="KRW" selected="selected">한국(KRW)</option>
+        <option value="JPY">일본(JPY)</option>
+        <option value="PHP">필리핀(PHP)</option>
+    </select>
+</div>
+<div>환율 : <span id="rateExpression"  th:text="${exchangeRate.getRateExpression()}"></span>
+    <span id="currencyRelation" th:text="${exchangeRate.getCurrencyRelation()}"></span>
+</div>
+<div>
+    송금액: <input id="transferMoney" type="text" value=""> USD
+</div>
+
+<input type="button" value="Submit" onclick="transfer()">
+
+<div id="result"></div>
+</body>
+</html>
